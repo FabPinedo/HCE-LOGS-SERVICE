@@ -11,7 +11,7 @@ services:
       # PLAINTEXT     → red Docker interna (LG container, mismo server)
       # PLAINTEXT_EXT → acceso externo desde otros servidores/microservicios
       KAFKA_LISTENERS: PLAINTEXT://:9092,PLAINTEXT_EXT://:9093,CONTROLLER://:9094
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_EXT://${KAFKA_EXTERNAL_HOST:-localhost}:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_EXT://${KAFKA_EXTERNAL_HOST:-host.docker.internal}:9093
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_EXT:PLAINTEXT,CONTROLLER:PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9094
@@ -41,6 +41,8 @@ services:
       KAFKA_BROKER: kafka:9092
       # SQL Server corre fuera de este compose — apunta a DB_HOST en .env
       DB_HOST: ${DB_HOST:-host.docker.internal}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       kafka:
         condition: service_healthy

@@ -1,0 +1,50 @@
+# docker-compose.yml — ms-lg-pruebas-kafka
+# Uso: docker compose up -d  |  docker compose down  |  docker compose build
+
+services:
+
+  kafka:
+    image: apache/kafka:latest
+    environment:
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: broker,controller
+      # PLAINTEXT     → red Docker interna (LG container, mismo server)
+      # PLAINTEXT_EXT → acceso externo desde otros servidores/microservicios
+      KAFKA_LISTENERS: PLAINTEXT://:9092,PLAINTEXT_EXT://:9093,CONTROLLER://:9094
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_EXT://${KAFKA_EXTERNAL_HOST:-localhost}:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_EXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9094
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKAJS_NO_PARTITIONER_WARNING: "1"
+    ports:
+      - "9092:9092"   # red Docker interna
+      - "9093:9093"   # acceso externo (otros servers/microservicios)
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  ms-lg-pruebas-kafka:
+    build: .
+    ports:
+      - "${PORT:-10400}:${PORT:-10400}"
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      KAFKA_BROKER: kafka:9092
+      # SQL Server corre fuera de este compose — apunta a DB_HOST en .env
+      DB_HOST: ${DB_HOST:-host.docker.internal}
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  kafka_data:

@@ -4,9 +4,10 @@ import { AuthSession }  from '../entities/auth-session.entity';
 import { AuthToken }    from '../entities/auth-token.entity';
 import { AuditEvent }   from '../entities/audit-event.entity';
 import { AuditTrace }   from '../entities/audit-trace.entity';
-import { AuditConsumer }    from './audit.consumer';
-import { AuditController }  from './audit.controller';
-import { AuditService }     from './audit.service';
+import { AuditConsumer }      from './audit.consumer';
+import { AuditController }    from './audit.controller';
+import { AuditService }       from './audit.service';
+import { PayloadCryptoService } from './payload-crypto.service';
 import { ApiKeyGuard }      from './guards/api-key.guard';
 import { AUDIT_HANDLERS, IAuditEventHandler } from './handlers/audit-event-handler.interface';
 import { LoginSuccessHandler }   from './handlers/login-success.handler';
@@ -31,6 +32,7 @@ const EVENT_HANDLERS = [
   controllers: [AuditConsumer, AuditController],
   providers: [
     ApiKeyGuard,
+    PayloadCryptoService,
     ...EVENT_HANDLERS,
     {
       provide:    AUDIT_HANDLERS,

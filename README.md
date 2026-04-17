@@ -98,6 +98,7 @@ curl "http://localhost:10400/audit/health"
 | `PORT` | — | `10400` | Puerto HTTP |
 | `NODE_ENV` | — | `development` | Entorno (`development` / `production`) |
 | `AUDIT_API_KEY` | Prod ✓ | — | API key para proteger los endpoints HTTP de consulta. Vacío = permisivo |
+| `AUDIT_PAYLOAD_KEY` | Prod ✓ | — | Clave AES-256-GCM de **exactamente 32 bytes UTF-8** para cifrar `payload_encrypted`. Vacío = JSON plano |
 | `KAFKA_BROKER` | ✓ | — | Broker(s) Kafka (coma-separados) — este servicio actúa como **consumer** |
 | `KAFKA_TOPIC` | — | `platform.logs` | Topic del que consume eventos |
 | `DB_HOST` | ✓ | — | Host del SQL Server |
@@ -111,7 +112,8 @@ curl "http://localhost:10400/audit/health"
 
 - Las tablas se crean automáticamente en el primer arranque en `NODE_ENV=development`
 - En producción `synchronize` está desactivado — usar migraciones TypeORM
-- El campo `payload_encrypted` actualmente almacena JSON plano. Para cifrado con AES-256-GCM ver pendiente S5 del code review
+- `payload_encrypted` se cifra con **AES-256-GCM** cuando `AUDIT_PAYLOAD_KEY` está configurado. El formato es `base64(iv).base64(authTag).base64(ciphertext)`. Sin key, se almacena JSON plano (solo desarrollo)
+- Generar una key segura: `openssl rand -base64 24 | tr -d '=' | head -c 32`
 
 ## Instalación
 
@@ -119,6 +121,6 @@ curl "http://localhost:10400/audit/health"
 npm install
 cp .env.example .env
 # Completar DB_HOST, DB_USER, DB_PASS y KAFKA_BROKER
-# En producción: establecer AUDIT_API_KEY con un valor seguro
+# En producción: establecer AUDIT_API_KEY y AUDIT_PAYLOAD_KEY con valores seguros
 npm run start:dev
 ```

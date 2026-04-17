@@ -7,6 +7,7 @@ import { AuditEvent }  from '../entities/audit-event.entity';
 import { AuditTrace }  from '../entities/audit-trace.entity';
 import { AuditEventData }      from './audit-event-data.interface';
 import { AUDIT_HANDLERS, IAuditEventHandler } from './handlers/audit-event-handler.interface';
+import { PayloadCryptoService } from './payload-crypto.service';
 
 export type { AuditEventData };
 
@@ -18,6 +19,7 @@ export class AuditService {
   constructor(
     @Inject(AUDIT_HANDLERS)        private readonly handlers:    IAuditEventHandler[],
     private readonly dataSource:   DataSource,
+    private readonly crypto:       PayloadCryptoService,
     // Repos solo para consultas HTTP (read-only, fuera de transacción)
     @InjectRepository(AuthSession) private readonly sessionRepo: Repository<AuthSession>,
     @InjectRepository(AuthToken)   private readonly tokenRepo:   Repository<AuthToken>,
@@ -52,8 +54,7 @@ export class AuditService {
 
   private async saveAuditEvent(data: AuditEventData, qr: QueryRunner): Promise<void> {
     const payload    = data.payload ?? {};
-    // TODO producción: cifrar payload con AES-256 antes de persistir
-    const payloadStr = Object.keys(payload).length > 0 ? JSON.stringify(payload) : undefined;
+    const payloadStr = this.crypto.encrypt(payload);
 
     await qr.manager.save(AuditEvent, {
       event_type:        data.event_type,

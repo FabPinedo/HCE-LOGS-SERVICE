@@ -42,6 +42,9 @@ export class AuditEvent {
   @Column({ length: 100, nullable: true })
   trace_id?: string;
 
+  @Column({ length: 255, nullable: true })
+  session_id?: string;
+
   // payload_encrypted: en producción cifrar con AES-256 antes de persistir.
   // Por ahora se almacena como JSON plano. Ver: crypto.createCipheriv()
   @Column({ type: 'text', nullable: true })

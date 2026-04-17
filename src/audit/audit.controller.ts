@@ -1,7 +1,9 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { AuditService } from './audit.service';
+import { ApiKeyGuard }  from './guards/api-key.guard';
 
 @Controller('audit')
+@UseGuards(ApiKeyGuard)
 export class AuditController {
   constructor(private readonly auditService: AuditService) {}
 

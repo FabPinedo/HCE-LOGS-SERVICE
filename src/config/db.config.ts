@@ -26,7 +26,7 @@ export function dbConfig(cfg: ConfigService): TypeOrmModuleOptions {
     entities: [UserEntity, AuthSession, AuthToken, AuditEvent, AuditTrace],
     // synchronize: true crea las tablas automáticamente en dev.
     // En producción usar migraciones TypeORM.
-    synchronize: cfg.get('NODE_ENV') !== 'production',
+    synchronize: cfg.get('NODE_ENV') === 'development',
     logging: cfg.get('NODE_ENV') === 'development',
   };
 }

@@ -1,175 +1,87 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Inject, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, FindManyOptions } from 'typeorm';
-import { UserEntity }  from '../entities/user.entity';
+import { DataSource, Repository, Between, FindManyOptions, QueryRunner } from 'typeorm';
 import { AuthSession } from '../entities/auth-session.entity';
 import { AuthToken }   from '../entities/auth-token.entity';
 import { AuditEvent }  from '../entities/audit-event.entity';
 import { AuditTrace }  from '../entities/audit-trace.entity';
-import { randomUUID }  from 'crypto';
+import { AuditEventData }      from './audit-event-data.interface';
+import { AUDIT_HANDLERS, IAuditEventHandler } from './handlers/audit-event-handler.interface';
 
-export interface AuditEventData {
-  event_type:    string;
-  source_system?: string;
-  trace_id?:     string;
-  user_id?:      string;
-  username?:     string;
-  session_id?:   string;
-  action?:       string;
-  outcome?:      string;
-  level?:        string;
-  message?:      string;
-  ip_address?:   string;
-  user_agent?:   string;
-  reason?:       string;
-  payload?:      Record<string, any>;
-  timestamp?:    string;
-  // campos específicos de gateway
-  request_path?: string;
-  method?:       string;
-  correlation_id?: string;
-  // campos específicos de token
-  token_type?:   string;
-}
+export type { AuditEventData };
 
 @Injectable()
 export class AuditService {
-  private readonly logger = new Logger(AuditService.name);
+  private readonly logger     = new Logger(AuditService.name);
+  private readonly handlerMap: Map<string, IAuditEventHandler>;
 
   constructor(
-    @InjectRepository(UserEntity)  private readonly userRepo:    Repository<UserEntity>,
+    @Inject(AUDIT_HANDLERS)        private readonly handlers:    IAuditEventHandler[],
+    private readonly dataSource:   DataSource,
+    // Repos solo para consultas HTTP (read-only, fuera de transacción)
     @InjectRepository(AuthSession) private readonly sessionRepo: Repository<AuthSession>,
     @InjectRepository(AuthToken)   private readonly tokenRepo:   Repository<AuthToken>,
     @InjectRepository(AuditEvent)  private readonly eventRepo:   Repository<AuditEvent>,
     @InjectRepository(AuditTrace)  private readonly traceRepo:   Repository<AuditTrace>,
-  ) {}
+  ) {
+    this.handlerMap = new Map(handlers.map(h => [h.eventType, h]));
+  }
 
   /**
-   * Punto de entrada principal.
-   * Siempre guarda en AUDIT_EVENT y luego enruta a tablas específicas.
+   * Punto de entrada del consumer.
+   * Ejecuta saveAuditEvent + handler en una sola transacción.
+   * Si el handler falla, el evento de auditoría también se revierte — consistencia total.
    */
   async processEvent(data: AuditEventData): Promise<void> {
-    await this.saveAuditEvent(data);
-
-    const type = data.event_type?.toUpperCase() ?? '';
-
-    if (type === 'LOGIN_SUCCESS') {
-      await this.handleLoginSuccess(data);
-    } else if (type === 'LOGIN_FAILED') {
-      await this.handleLoginFailed(data);
-    } else if (type === 'LOGOUT') {
-      await this.handleLogout(data);
-    } else if (type === 'TOKEN_REFRESH') {
-      await this.handleTokenRefresh(data);
-    } else if (type === 'GATEWAY_REQUEST') {
-      await this.handleGatewayRequest(data);
-    }
-    // SERVICE_CALL y otros solo van a AUDIT_EVENT (ya guardado arriba)
-  }
-
-  // ── Handlers por event_type ──────────────────────────────────────
-
-  private async handleLoginSuccess(data: AuditEventData): Promise<void> {
-    // Upsert USER — registra o actualiza el usuario
-    if (data.user_id && data.username) {
-      await this.userRepo.upsert(
-        { user_id: data.user_id, username: data.username, status: 'active' },
-        ['user_id'],
-      );
-    }
-    // Crear AUTH_SESSION
-    if (data.session_id) {
-      await this.sessionRepo.upsert(
-        {
-          session_id: data.session_id,
-          user_id:    data.user_id ?? 'unknown',
-          status:     'active',
-        },
-        ['session_id'],
-      );
+    const qr = this.dataSource.createQueryRunner();
+    await qr.connect();
+    await qr.startTransaction();
+    try {
+      await this.saveAuditEvent(data, qr);
+      await this.handlerMap.get(data.event_type?.toUpperCase() ?? '')?.handle(data, qr);
+      await qr.commitTransaction();
+    } catch (err: any) {
+      await qr.rollbackTransaction();
+      this.logger.error(`Error procesando evento ${data.event_type}: ${err?.message}`, err?.stack);
+    } finally {
+      await qr.release();
     }
   }
 
-  private async handleLoginFailed(data: AuditEventData): Promise<void> {
-    // Solo registrar si conocemos al usuario (puede ser usuario inexistente)
-    if (data.user_id && data.username) {
-      await this.userRepo.upsert(
-        { user_id: data.user_id, username: data.username, status: 'active' },
-        ['user_id'],
-      );
-    }
-  }
+  // ── Persistencia central ──────────────────────────────────────────
 
-  private async handleLogout(data: AuditEventData): Promise<void> {
-    if (data.session_id) {
-      await this.sessionRepo.update(
-        { session_id: data.session_id },
-        { status: 'revoked' },
-      );
-    }
-  }
-
-  private async handleTokenRefresh(data: AuditEventData): Promise<void> {
-    if (data.session_id) {
-      await this.tokenRepo.save({
-        token_id:   randomUUID(),
-        session_id: data.session_id,
-        token_type: data.token_type ?? 'access',
-      });
-    }
-  }
-
-  private async handleGatewayRequest(data: AuditEventData): Promise<void> {
-    // Crear AUDIT_TRACE si tiene trace_id
-    if (data.trace_id) {
-      await this.traceRepo.upsert(
-        {
-          trace_id:       data.trace_id,
-          correlation_id: data.correlation_id,
-          request_path:   data.action ?? data.request_path,
-          method:         data.method,
-        },
-        ['trace_id'],
-      );
-    }
-  }
-
-  // ── Persistencia central ─────────────────────────────────────────
-
-  private async saveAuditEvent(data: AuditEventData): Promise<void> {
-    const payload = data.payload ?? {};
+  private async saveAuditEvent(data: AuditEventData, qr: QueryRunner): Promise<void> {
+    const payload    = data.payload ?? {};
     // TODO producción: cifrar payload con AES-256 antes de persistir
-    // import { createCipheriv, randomBytes } from 'crypto';
-    const payloadStr = Object.keys(payload).length > 0
-      ? JSON.stringify(payload)
-      : undefined;
+    const payloadStr = Object.keys(payload).length > 0 ? JSON.stringify(payload) : undefined;
 
-    await this.eventRepo.save({
+    await qr.manager.save(AuditEvent, {
       event_type:        data.event_type,
       user_id:           data.user_id,
       username:          data.username,
-      action:            data.action     ?? data.message,
+      action:            data.action ?? data.message,
       outcome:           data.outcome,
       source_system:     data.source_system,
       ip_address:        data.ip_address,
       user_agent:        data.user_agent,
       trace_id:          data.trace_id,
+      session_id:        data.session_id,
       payload_encrypted: payloadStr,
     });
   }
 
-  // ── Consultas HTTP ───────────────────────────────────────────────
+  // ── Consultas HTTP (read-only, sin transacción) ──────────────────
 
   async findEvents(filters: {
-    userId?:      string;
-    username?:    string;
-    eventType?:   string;
-    outcome?:     string;
+    userId?:       string;
+    username?:     string;
+    eventType?:    string;
+    outcome?:      string;
     sourceSystem?: string;
-    traceId?:     string;
-    from?:        string;
-    to?:          string;
-    limit?:       number;
+    traceId?:      string;
+    from?:         string;
+    to?:           string;
+    limit?:        number;
   }): Promise<AuditEvent[]> {
     const where: any = {};
     if (filters.userId)       where.user_id       = filters.userId;
@@ -200,7 +112,7 @@ export class AuditService {
   async findSession(sessionId: string): Promise<{ session: AuthSession | null; events: AuditEvent[]; tokens: AuthToken[] }> {
     const [session, events, tokens] = await Promise.all([
       this.sessionRepo.findOne({ where: { session_id: sessionId } }),
-      this.eventRepo.find({ where: { user_id: sessionId }, order: { timestamp: 'ASC' } }),
+      this.eventRepo.find({ where: { session_id: sessionId }, order: { timestamp: 'ASC' } }),
       this.tokenRepo.find({ where: { session_id: sessionId } }),
     ]);
     return { session, events, tokens };

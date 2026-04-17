@@ -1,6 +1,7 @@
 import { Controller, Logger } from '@nestjs/common';
 import { EventPattern, Payload } from '@nestjs/microservices';
-import { AuditService } from './audit.service';
+import { AuditService }      from './audit.service';
+import { KAFKA_AUDIT_TOPIC } from './kafka-topic.config';
 
 @Controller()
 export class AuditConsumer {
@@ -8,7 +9,7 @@ export class AuditConsumer {
 
   constructor(private readonly auditService: AuditService) {}
 
-  @EventPattern(process.env.KAFKA_TOPIC ?? 'platform.logs')
+  @EventPattern(KAFKA_AUDIT_TOPIC)
   async handleAuditEvent(@Payload() message: any): Promise<void> {
     // Kafka envuelve el mensaje en { key, value, headers, ... }
     const data = message?.value ?? message;

@@ -1,5 +1,5 @@
 import {
-  Entity, PrimaryGeneratedColumn, Column,
+  Entity, PrimaryGeneratedColumn, Column, Index,
 } from 'typeorm';
 
 /**
@@ -11,6 +11,7 @@ export class AuthToken {
   @PrimaryGeneratedColumn('uuid')
   token_id!: string;
 
+  @Index()
   @Column('uuid')
   session_id!: string;
 

@@ -24,6 +24,7 @@ services:
       - "10403:10403"   # acceso externo (otros servers/microservicios)
     volumes:
       - kafka_data:/var/lib/kafka/data
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
       interval: 15s

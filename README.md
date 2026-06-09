@@ -115,12 +115,65 @@ curl "http://localhost:10400/audit/health"
 - `payload_encrypted` se cifra con **AES-256-GCM** cuando `AUDIT_PAYLOAD_KEY` está configurado. El formato es `base64(iv).base64(authTag).base64(ciphertext)`. Sin key, se almacena JSON plano (solo desarrollo)
 - Generar una key segura: `openssl rand -base64 24 | tr -d '=' | head -c 32`
 
-## Instalación
+## Cómo ejecutar
+
+### Local sin Docker
+
+Requiere acceso a SQL Server y a un broker Kafka.
 
 ```bash
 npm install
-cp .env.example .env
-# Completar DB_HOST, DB_USER, DB_PASS y KAFKA_BROKER
+# Copiar .env.example a .env y completar DB_HOST, DB_USER, DB_PASS, KAFKA_BROKER
 # En producción: establecer AUDIT_API_KEY y AUDIT_PAYLOAD_KEY con valores seguros
 npm run start:dev
+```
+
+### Local con Docker
+
+Levanta Kafka y el servicio juntos con `docker-compose.dev.yml`:
+
+```bash
+docker compose -f docker-compose.dev.yml build
+docker compose -f docker-compose.dev.yml up -d
+
+# O build + up en un solo comando:
+docker compose -f docker-compose.dev.yml up -d --build
+
+# Para bajar:
+docker compose -f docker-compose.dev.yml down
+```
+
+Si SQL Server corre en tu máquina, usar `DB_HOST=host.docker.internal` en `.env`. `KAFKA_BROKER` en `.env` puede ser cualquier valor — dentro del contenedor siempre se usa `kafka:9092` (red interna Docker).
+
+### Producción
+
+El `docker-compose.yml` lee los secretos desde Vault al arrancar. No se necesita `.env` en el servidor.
+
+**Requisito:** Vault corriendo en `192.168.42.44:8200` (ver [HCE-vault-config](../HCE-vault-config/README.md)).
+
+```bash
+# El token está en HCE-vault-config/.env como TOKEN_LOGS_SERVICE
+export VAULT_TOKEN=hvs.xxxx
+
+docker compose down
+docker compose build
+docker compose up -d
+```
+
+Al arrancar, `entrypoint.sh` obtiene `DB_PASS`, `DB_HOST`, `KAFKA_EXTERNAL_HOST` y el resto de Vault. `KAFKA_BROKER=kafka:9092` lo fija el `docker-compose.yml` directamente (red interna Docker, no viene de Vault).
+
+> **Nota:** `AUDIT_API_KEY` y `AUDIT_PAYLOAD_KEY` también deben agregarse a Vault (`secret/hce/nestjs/logs-service`) antes del primer deploy en producción.
+
+Con GitHub Actions el token se pasa como variable de entorno desde GitHub Secrets (`TOKEN_LOGS_SERVICE`).
+
+---
+
+## Scripts disponibles
+
+```bash
+npm run start:dev   # desarrollo con hot-reload
+npm run build       # compilar TypeScript
+npm run start:prod  # ejecutar build
+npm run test        # tests unitarios
+npm run test:cov    # cobertura
 ```

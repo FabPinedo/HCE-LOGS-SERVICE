@@ -1,9 +1,8 @@
-# docker-compose.yml — lg-pruebas-kafka (producción)
-# Uso: docker compose down && docker compose build && docker compose up -d
+# docker-compose.dev.yml — lg-pruebas-kafka (desarrollo local con Docker)
+# Uso: docker compose -f docker-compose.dev.yml up -d
 #
-# VAULT_TOKEN se pasa como variable de entorno del sistema (sin .env):
-#   export VAULT_TOKEN=hvs.xxxx && docker compose up -d
-# El entrypoint.sh carga el resto desde Vault al arrancar.
+# Lee las variables directamente del .env local.
+# Para desarrollo sin Docker usa: npm run start:dev
 
 services:
 
@@ -13,7 +12,7 @@ services:
       KAFKA_NODE_ID: "1"
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_LISTENERS: PLAINTEXT://:9092,PLAINTEXT_EXT://:10403,CONTROLLER://:9094
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_EXT://192.168.42.44:10403
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_EXT://${KAFKA_EXTERNAL_HOST:-host.docker.internal}:10403
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_EXT:PLAINTEXT,CONTROLLER:PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9094
@@ -36,16 +35,13 @@ services:
 
   ms-lg-pruebas-kafka:
     build: .
-    env_file:
-      - .env.docker
     ports:
-      - "10400:10400"
+      - "${PORT:-10400}:${PORT:-10400}"
+    env_file: .env
     environment:
-      NODE_ENV: production
-      PORT: "10400"
-      VAULT_ADDR: "http://host.docker.internal:8200"
-      VAULT_SECRET_PATH: "hce/nestjs/logs-service"
+      NODE_ENV: development
       KAFKA_BROKER: kafka:9092
+      DB_HOST: ${DB_HOST:-host.docker.internal}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

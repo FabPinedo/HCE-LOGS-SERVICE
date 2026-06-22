@@ -1,4 +1,4 @@
-# lg-pruebas-kafka
+# ms-tch-audit-logger
 
 > Audit Logger Service generado por **Jarvis Platform** — 2/4/2026
 
@@ -41,7 +41,7 @@ Todos los endpoints (excepto `/audit/health`) requieren el header `x-api-key`.
 Los endpoints de consulta están protegidos con una clave estática configurada en `.env`:
 
 ```bash
-# .env del lg-pruebas-kafka
+# .env del ms-tch-audit-logger
 AUDIT_API_KEY=mi-clave-secreta-interna
 
 # Uso en cada request
@@ -162,7 +162,7 @@ docker compose up -d
 
 Al arrancar, `entrypoint.sh` obtiene `DB_PASS`, `DB_HOST`, `KAFKA_EXTERNAL_HOST` y el resto de Vault. `KAFKA_BROKER=kafka:9092` lo fija el `docker-compose.yml` directamente (red interna Docker, no viene de Vault).
 
-> **Nota:** `AUDIT_API_KEY` y `AUDIT_PAYLOAD_KEY` también deben agregarse a Vault (`secret/hce/nestjs/logs-service`) antes del primer deploy en producción.
+> **Nota:** `AUDIT_API_KEY` y `AUDIT_PAYLOAD_KEY` también deben agregarse a Vault (`secret/hce/nestjs/tch-audit-logger`) antes del primer deploy en producción.
 
 Con GitHub Actions el token se pasa como variable de entorno desde GitHub Secrets (`TOKEN_LOGS_SERVICE`).
 

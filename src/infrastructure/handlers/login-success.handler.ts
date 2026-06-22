@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { QueryRunner } from 'typeorm';
-import { UserEntity }  from '../../entities/user.entity';
-import { AuthSession } from '../../entities/auth-session.entity';
-import type { AuditEventData } from '../audit-event-data.interface';
-import type { IAuditEventHandler } from './audit-event-handler.interface';
+import { UserEntity }  from '../../domain/entities/user.entity';
+import { AuthSession } from '../../domain/entities/auth-session.entity';
+import type { AuditEventData } from '../../domain/models/audit-event-data.interface';
+import type { IAuditEventHandler } from '../../domain/handlers/audit-event-handler.interface';
 
 @Injectable()
 export class LoginSuccessHandler implements IAuditEventHandler {
@@ -17,12 +17,12 @@ export class LoginSuccessHandler implements IAuditEventHandler {
         ['user_id'],
       );
     }
-    if (data.session_id) {
+    if (data.session_id && data.user_id) {
       await qr.manager.upsert(
         AuthSession,
         {
           session_id: data.session_id,
-          user_id:    data.user_id ?? 'unknown',
+          user_id:    data.user_id,
           status:     'active',
         },
         ['session_id'],

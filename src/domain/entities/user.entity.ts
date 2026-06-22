@@ -8,7 +8,9 @@ import {
  */
 @Entity('lg_user')
 export class UserEntity {
-  @PrimaryColumn('uuid')
+  // No es un UUID: el sistema de auth identifica usuarios por username (ej. "fpinedo"),
+  // igual que AuditEvent.user_id (varchar) — debe coincidir con ese mismo tipo.
+  @PrimaryColumn({ length: 255 })
   user_id!: string;
 
   @Column({ length: 255 })

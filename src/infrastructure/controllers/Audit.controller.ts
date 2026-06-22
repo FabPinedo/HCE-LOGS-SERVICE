@@ -1,11 +1,11 @@
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
-import { AuditService } from './audit.service';
-import { ApiKeyGuard }  from './guards/api-key.guard';
+import { AuditUseCase } from '../../application/use-cases/Audit.use-case';
+import { ApiKeyGuard }  from '../guards/api-key.guard';
 
 @Controller('audit')
 @UseGuards(ApiKeyGuard)
 export class AuditController {
-  constructor(private readonly auditService: AuditService) {}
+  constructor(private readonly auditUseCase: AuditUseCase) {}
 
   /**
    * GET /audit/events
@@ -23,7 +23,7 @@ export class AuditController {
     @Query('to')           to?:           string,
     @Query('limit')        limit?:        string,
   ) {
-    return this.auditService.findEvents({
+    return this.auditUseCase.findEvents({
       userId, username, eventType, outcome, sourceSystem, traceId, from, to,
       limit: limit ? Number(limit) : 200,
     });
@@ -35,7 +35,7 @@ export class AuditController {
    */
   @Get('trace/:traceId')
   findTrace(@Param('traceId') traceId: string) {
-    return this.auditService.findTrace(traceId);
+    return this.auditUseCase.findTrace(traceId);
   }
 
   /**
@@ -44,11 +44,11 @@ export class AuditController {
    */
   @Get('session/:sessionId')
   findSession(@Param('sessionId') sessionId: string) {
-    return this.auditService.findSession(sessionId);
+    return this.auditUseCase.findSession(sessionId);
   }
 
   @Get('health')
   health() {
-    return this.auditService.health();
+    return this.auditUseCase.health();
   }
 }

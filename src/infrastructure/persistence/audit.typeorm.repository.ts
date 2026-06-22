@@ -1,58 +1,25 @@
-import { Injectable, Inject, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository, Between, FindManyOptions, QueryRunner } from 'typeorm';
-import { AuthSession } from '../entities/auth-session.entity';
-import { AuthToken }   from '../entities/auth-token.entity';
-import { AuditEvent }  from '../entities/audit-event.entity';
-import { AuditTrace }  from '../entities/audit-trace.entity';
-import { AuditEventData }      from './audit-event-data.interface';
-import { AUDIT_HANDLERS, IAuditEventHandler } from './handlers/audit-event-handler.interface';
-import { PayloadCryptoService } from './payload-crypto.service';
-
-export type { AuditEventData };
+import { Repository, Between, FindManyOptions, QueryRunner } from 'typeorm';
+import { AuthSession } from '../../domain/entities/auth-session.entity';
+import { AuthToken }   from '../../domain/entities/auth-token.entity';
+import { AuditEvent }  from '../../domain/entities/audit-event.entity';
+import { AuditTrace }  from '../../domain/entities/audit-trace.entity';
+import { AuditEventData } from '../../domain/models/audit-event-data.interface';
+import { AuditRepository, AuditEventFilters } from '../../domain/repositories/audit.repository';
+import { PayloadCryptoService } from '../crypto/payload-crypto.service';
 
 @Injectable()
-export class AuditService {
-  private readonly logger     = new Logger(AuditService.name);
-  private readonly handlerMap: Map<string, IAuditEventHandler>;
-
+export class AuditTypeOrmRepository implements AuditRepository {
   constructor(
-    @Inject(AUDIT_HANDLERS)        private readonly handlers:    IAuditEventHandler[],
-    private readonly dataSource:   DataSource,
     private readonly crypto:       PayloadCryptoService,
-    // Repos solo para consultas HTTP (read-only, fuera de transacción)
     @InjectRepository(AuthSession) private readonly sessionRepo: Repository<AuthSession>,
     @InjectRepository(AuthToken)   private readonly tokenRepo:   Repository<AuthToken>,
     @InjectRepository(AuditEvent)  private readonly eventRepo:   Repository<AuditEvent>,
     @InjectRepository(AuditTrace)  private readonly traceRepo:   Repository<AuditTrace>,
-  ) {
-    this.handlerMap = new Map(handlers.map(h => [h.eventType, h]));
-  }
+  ) {}
 
-  /**
-   * Punto de entrada del consumer.
-   * Ejecuta saveAuditEvent + handler en una sola transacción.
-   * Si el handler falla, el evento de auditoría también se revierte — consistencia total.
-   */
-  async processEvent(data: AuditEventData): Promise<void> {
-    const qr = this.dataSource.createQueryRunner();
-    await qr.connect();
-    await qr.startTransaction();
-    try {
-      await this.saveAuditEvent(data, qr);
-      await this.handlerMap.get(data.event_type?.toUpperCase() ?? '')?.handle(data, qr);
-      await qr.commitTransaction();
-    } catch (err: any) {
-      await qr.rollbackTransaction();
-      this.logger.error(`Error procesando evento ${data.event_type}: ${err?.message}`, err?.stack);
-    } finally {
-      await qr.release();
-    }
-  }
-
-  // ── Persistencia central ──────────────────────────────────────────
-
-  private async saveAuditEvent(data: AuditEventData, qr: QueryRunner): Promise<void> {
+  async saveAuditEvent(data: AuditEventData, qr: QueryRunner): Promise<void> {
     const payload    = data.payload ?? {};
     const payloadStr = this.crypto.encrypt(payload);
 
@@ -71,19 +38,7 @@ export class AuditService {
     });
   }
 
-  // ── Consultas HTTP (read-only, sin transacción) ──────────────────
-
-  async findEvents(filters: {
-    userId?:       string;
-    username?:     string;
-    eventType?:    string;
-    outcome?:      string;
-    sourceSystem?: string;
-    traceId?:      string;
-    from?:         string;
-    to?:           string;
-    limit?:        number;
-  }): Promise<AuditEvent[]> {
+  async findEvents(filters: AuditEventFilters): Promise<AuditEvent[]> {
     const where: any = {};
     if (filters.userId)       where.user_id       = filters.userId;
     if (filters.username)     where.username       = filters.username;
@@ -117,9 +72,5 @@ export class AuditService {
       this.tokenRepo.find({ where: { session_id: sessionId } }),
     ]);
     return { session, events, tokens };
-  }
-
-  health(): Record<string, any> {
-    return { status: 'UP', service: 'ms-lg-pruebas-kafka', timestamp: new Date().toISOString() };
   }
 }

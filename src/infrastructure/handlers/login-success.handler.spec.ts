@@ -1,5 +1,5 @@
 import { LoginSuccessHandler } from './login-success.handler';
-import { AuditEventData }      from '../audit-event-data.interface';
+import { AuditEventData }      from '../../domain/models/audit-event-data.interface';
 
 // ── Helper ────────────────────────────────────────────────────────────────────
 

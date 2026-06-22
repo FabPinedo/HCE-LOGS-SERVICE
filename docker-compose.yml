@@ -34,18 +34,24 @@ services:
       retries: 5
       start_period: 30s
 
-  ms-lg-pruebas-kafka:
+  ms-tch-audit-logger:
     build: .
     env_file:
       - .env.docker
     ports:
       - "10400:10400"
+      - "20400:20400"
     environment:
       NODE_ENV: production
       PORT: "10400"
       VAULT_ADDR: "http://host.docker.internal:8200"
-      VAULT_SECRET_PATH: "hce/nestjs/logs-service"
+      VAULT_SECRET_PATH: "hce/nestjs/tch-audit-logger"
       KAFKA_BROKER: kafka:9092
+      USE_SSL: "true"
+      CERT_PATH: "/proyectos/certs"
+      SSL_PORT: "20400"
+    volumes:
+      - /proyectos/certs:/proyectos/certs:ro
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

@@ -17,5 +17,5 @@ COPY entrypoint.sh ./entrypoint.sh
 RUN chmod +x entrypoint.sh
 EXPOSE 10400
 USER nestjs
-HEALTHCHECK --interval=30s --timeout=5s CMD wget -qO- http://localhost:10400/audit/health || exit 1
+HEALTHCHECK --interval=30s --timeout=5s CMD wget -qO- http://localhost:10400/health || exit 1
 CMD ["sh", "entrypoint.sh"]

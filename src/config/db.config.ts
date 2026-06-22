@@ -2,11 +2,11 @@
 // Las credenciales se leen desde variables de entorno en tiempo de ejecución
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
-import { UserEntity }  from '../entities/user.entity';
-import { AuthSession } from '../entities/auth-session.entity';
-import { AuthToken }   from '../entities/auth-token.entity';
-import { AuditEvent }  from '../entities/audit-event.entity';
-import { AuditTrace }  from '../entities/audit-trace.entity';
+import { UserEntity }  from '../domain/entities/user.entity';
+import { AuthSession } from '../domain/entities/auth-session.entity';
+import { AuthToken }   from '../domain/entities/auth-token.entity';
+import { AuditEvent }  from '../domain/entities/audit-event.entity';
+import { AuditTrace }  from '../domain/entities/audit-trace.entity';
 
 export function dbConfig(cfg: ConfigService): TypeOrmModuleOptions {
   return {
@@ -26,7 +26,7 @@ export function dbConfig(cfg: ConfigService): TypeOrmModuleOptions {
     entities: [UserEntity, AuthSession, AuthToken, AuditEvent, AuditTrace],
     // synchronize: true crea las tablas automáticamente en dev.
     // En producción usar migraciones TypeORM.
-    synchronize: cfg.get('NODE_ENV') === 'production',
-    logging: cfg.get('NODE_ENV') === 'production',
+    synchronize: cfg.get('NODE_ENV') !== 'production',
+    logging: cfg.get('NODE_ENV') !== 'production',
   };
 }

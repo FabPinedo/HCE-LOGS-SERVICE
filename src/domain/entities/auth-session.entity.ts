@@ -11,7 +11,8 @@ export class AuthSession {
   @PrimaryColumn('uuid')
   session_id!: string;
 
-  @Column('uuid')
+  // No es un UUID: ver comentario en UserEntity.user_id.
+  @Column({ length: 255 })
   user_id!: string;
 
   @Column({ length: 255, nullable: true })

@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { QueryRunner } from 'typeorm';
-import { AuthSession } from '../../entities/auth-session.entity';
-import type { AuditEventData } from '../audit-event-data.interface';
-import type { IAuditEventHandler } from './audit-event-handler.interface';
+import { AuthSession } from '../../domain/entities/auth-session.entity';
+import type { AuditEventData } from '../../domain/models/audit-event-data.interface';
+import type { IAuditEventHandler } from '../../domain/handlers/audit-event-handler.interface';
 
 @Injectable()
 export class LogoutHandler implements IAuditEventHandler {

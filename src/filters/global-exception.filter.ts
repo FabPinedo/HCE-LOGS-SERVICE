@@ -1,4 +1,4 @@
-import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Logger } from '@nestjs/common';
+﻿import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { QueryFailedError } from 'typeorm';
 
@@ -30,6 +30,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     }
 
     if (exception instanceof QueryFailedError) {
+      const qfe = exception as QueryFailedError;
       const driverCode: string | undefined = (exception as any).code ?? (exception as any).driverError?.code;
       const sqlNumber: number | undefined =
         typeof (exception as any).number === 'number'
@@ -39,7 +40,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
             : undefined;
 
       this.logger.error(
-        `QueryFailedError [code=${driverCode} number=${sqlNumber}] en ${request.method} ${request.originalUrl}: ${exception.message}`,
+        `QueryFailedError [code=${driverCode} number=${sqlNumber}] en ${request.method} ${request.originalUrl}: ${qfe.message}`,
       );
 
       // El driver (tedious) valida tipo/rango de cada parámetro ANTES de enviarlo a SQL Server
@@ -58,7 +59,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         response.status(HttpStatus.CONFLICT).json({
           statusCode: HttpStatus.CONFLICT,
           error: 'Conflict',
-          message: this.extractConstraintMessage(exception.message),
+          message: this.extractConstraintMessage(qfe.message),
         });
         return;
       }
@@ -67,7 +68,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         response.status(HttpStatus.BAD_REQUEST).json({
           statusCode: HttpStatus.BAD_REQUEST,
           error: 'Bad Request',
-          message: this.extractBadInputMessage(sqlNumber, exception.message),
+          message: this.extractBadInputMessage(sqlNumber, qfe.message),
         });
         return;
       }

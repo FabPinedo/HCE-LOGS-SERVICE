@@ -58,3 +58,8 @@ services:
 
 volumes:
   kafka_data:
+
+networks:
+  default:
+    name: hce-dev
+    external: true

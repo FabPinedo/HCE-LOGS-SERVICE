@@ -6,7 +6,7 @@ import {
  * Traza distribuida de un request a través de múltiples microservicios.
  * Permite correlacionar todos los AUDIT_EVENT de una misma operación.
  */
-@Entity('lg_audit_trace')
+@Entity('AuditTrace')
 @Index(['correlation_id'])
 export class AuditTrace {
   @PrimaryColumn('uuid')
@@ -21,6 +21,6 @@ export class AuditTrace {
   @Column({ length: 20, nullable: true })
   method?: string;
 
-  @CreateDateColumn({ type: 'datetimeoffset' })
+  @CreateDateColumn({ type: 'datetimeoffset', default: () => 'SYSDATETIMEOFFSET()' })
   created_at!: Date;
 }

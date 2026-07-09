@@ -8,16 +8,21 @@ Expone endpoints HTTP de consulta protegidos con API key.
 ## Modelo de datos
 
 ```
-lg_user          — copia denormalizada del usuario (upsert en cada LOGIN_SUCCESS)
-lg_auth_session  — sesiones de autenticación
-lg_auth_token    — tokens emitidos por sesión
-lg_audit_event   — registro central de todos los eventos ← tabla principal
-lg_audit_trace   — trazas distribuidas entre microservicios
+AppUser       — copia denormalizada del usuario (upsert en cada LOGIN_SUCCESS)
+AuthSession   — sesiones de autenticación (FK user_id → AppUser.user_id)
+AuthToken     — tokens emitidos por sesión (FK session_id → AuthSession.session_id)
+AuditEvent    — registro central de todos los eventos ← tabla principal
+AuditTrace    — trazas distribuidas entre microservicios
 ```
+
+`AuditEvent.session_id` es `uniqueidentifier` (consistente con `AuthSession`/`AuthToken`)
+pero **sin FK** hacia `AuthSession`: es la tabla de mayor volumen de escritura y de
+retención regulatoria más larga — una FK síncrona acoplaría su latencia de escritura
+a validación referencial, y `AuthSession` es rotativa/purgable.
 
 ## Routing de eventos Kafka
 
-| event_type | lg_audit_event | lg_user | lg_auth_session | lg_auth_token | lg_audit_trace |
+| event_type | AuditEvent | AppUser | AuthSession | AuthToken | AuditTrace |
 |------------|:-:|:-:|:-:|:-:|:-:|
 | LOGIN_SUCCESS | ✓ | upsert | crear | — | — |
 | LOGIN_FAILED  | ✓ | — | — | — | — |
@@ -105,14 +110,14 @@ curl "http://localhost:10400/audit/health"
 | `DB_PORT` | — | `1433` | Puerto SQL Server |
 | `DB_USER` | ✓ | — | Usuario SQL Server |
 | `DB_PASS` | ✓ | — | Contraseña SQL Server |
-| `DB_NAME` | — | `audit_db` | Nombre de la base de datos |
+| `DB_NAME` | — | `HCE_AUDIT` | Nombre de la base de datos |
 | `DB_INSTANCE` | — | — | Instancia nombrada de SQL Server (vacío si se usa puerto directo) |
 
 ## Notas
 
 - Las tablas se crean automáticamente en el primer arranque en `NODE_ENV=development`
 - En producción `synchronize` está desactivado — usar migraciones TypeORM
-- `payload_encrypted` se cifra con **AES-256-GCM** cuando `AUDIT_PAYLOAD_KEY` está configurado. El formato es `base64(iv).base64(authTag).base64(ciphertext)`. Sin key, se almacena JSON plano (solo desarrollo)
+- `payload_encrypted` se cifra con **AES-256-GCM** cuando `AUDIT_PAYLOAD_KEY` está configurado. El formato antes de persistir es `base64(iv).base64(authTag).base64(ciphertext)`, almacenado como `VARBINARY(MAX)` (columna binaria, no texto). Sin key, se almacena JSON plano igualmente convertido a binario (solo desarrollo)
 - Generar una key segura: `openssl rand -base64 24 | tr -d '=' | head -c 32`
 
 ## Cómo ejecutar

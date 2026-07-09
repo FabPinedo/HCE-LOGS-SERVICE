@@ -15,7 +15,7 @@ export function dbConfig(cfg: ConfigService): TypeOrmModuleOptions {
     port:     cfg.get<number>('DB_PORT', 1433),
     username: cfg.get<string>('DB_USER'),
     password: cfg.get<string>('DB_PASS'),
-    database: cfg.get<string>('DB_NAME', 'audit_db'),
+    database: cfg.get<string>('DB_NAME', 'HCE_AUDIT'),
     options: {
       encrypt:                false,
       trustServerCertificate: true,
@@ -24,6 +24,8 @@ export function dbConfig(cfg: ConfigService): TypeOrmModuleOptions {
     },
     pool: { max: 25, min: 0 },
     entities: [UserEntity, AuthSession, AuthToken, AuditEvent, AuditTrace],
+    // synchronize siempre false: el esquema de HCE_AUDIT se administra por DDL/migraciones,
+    // no por auto-sync de TypeORM (riesgo de alterar/dropear tablas de auditoría en runtime).
     synchronize: false,
     logging: cfg.get('NODE_ENV') !== 'production',
   };

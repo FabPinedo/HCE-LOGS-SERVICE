@@ -22,6 +22,10 @@ export class AuditTypeOrmRepository implements AuditRepository {
   async saveAuditEvent(data: AuditEventData, qr: QueryRunner): Promise<void> {
     const payload    = data.payload ?? {};
     const payloadStr = this.crypto.encrypt(payload);
+    // payload_encrypted es VARBINARY(MAX) en la tabla: PayloadCryptoService.encrypt()
+    // devuelve un string (base64(iv).base64(tag).base64(ciphertext), o JSON plano sin key
+    // configurada) — se convierte a Buffer UTF-8 antes de persistir.
+    const payloadBuf  = payloadStr !== undefined ? Buffer.from(payloadStr, 'utf8') : undefined;
 
     await qr.manager.save(AuditEvent, {
       event_type:        data.event_type,
@@ -34,7 +38,7 @@ export class AuditTypeOrmRepository implements AuditRepository {
       user_agent:        data.user_agent,
       trace_id:          data.trace_id,
       session_id:        data.session_id,
-      payload_encrypted: payloadStr,
+      payload_encrypted: payloadBuf,
     });
   }
 

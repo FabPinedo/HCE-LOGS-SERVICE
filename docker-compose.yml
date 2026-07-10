@@ -1,4 +1,4 @@
-# docker-compose.yml — lg-pruebas-kafka (producción)
+﻿# docker-compose.yml — lg-pruebas-kafka (producción)
 # Uso: docker compose down && docker compose build && docker compose up -d
 #
 # VAULT_TOKEN se pasa como variable de entorno del sistema (sin .env):
@@ -47,9 +47,6 @@ services:
       VAULT_ADDR: "http://host.docker.internal:8200"
       VAULT_SECRET_PATH: "hce/nestjs/tch-audit-logger"
       KAFKA_BROKER: kafka:9092
-      USE_SSL: "true"
-      CERT_PATH: "/proyectos/certs"
-      SSL_PORT: "20400"
     volumes:
       - /proyectos/certs:/proyectos/certs:ro
     extra_hosts:
@@ -61,3 +58,8 @@ services:
 
 volumes:
   kafka_data:
+
+networks:
+  default:
+    name: hce-dev
+    external: true

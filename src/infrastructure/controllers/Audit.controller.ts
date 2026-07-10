@@ -1,6 +1,12 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards, BadRequestException } from '@nestjs/common';
 import { AuditUseCase } from '../../application/use-cases/Audit.use-case';
 import { ApiKeyGuard }  from '../guards/api-key.guard';
+
+// trace_id/session_id son uniqueidentifier de SQL Server (NEWSEQUENTIALID() / provisto por otro
+// servicio) — no garantizan los nibbles de version/variante que exige RFC4122, así que se valida
+// solo la forma (8-4-4-4-12 hex), no con @IsUUID()/ParseUUIDPipe (ver mismo fix en
+// ms-bs-core-emergency-monitor y ms-bs-master-organization).
+const GUID_SHAPE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
 @Controller('audit')
 @UseGuards(ApiKeyGuard)
@@ -35,6 +41,7 @@ export class AuditController {
    */
   @Get('trace/:traceId')
   findTrace(@Param('traceId') traceId: string) {
+    if (!GUID_SHAPE.test(traceId)) throw new BadRequestException('traceId debe tener formato de GUID');
     return this.auditUseCase.findTrace(traceId);
   }
 
@@ -44,6 +51,7 @@ export class AuditController {
    */
   @Get('session/:sessionId')
   findSession(@Param('sessionId') sessionId: string) {
+    if (!GUID_SHAPE.test(sessionId)) throw new BadRequestException('sessionId debe tener formato de GUID');
     return this.auditUseCase.findSession(sessionId);
   }
 

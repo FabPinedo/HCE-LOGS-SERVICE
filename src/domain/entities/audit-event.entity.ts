@@ -6,7 +6,7 @@ import {
  * Registro central de auditoría.
  * Todos los eventos de todos los microservicios llegan aquí.
  */
-@Entity('AuditEvent')
+@Entity('AuditEvent', { schema: 'audit' })
 @Index(['user_id'])
 @Index(['trace_id'])
 @Index(['event_type'])

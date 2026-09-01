@@ -7,7 +7,7 @@ import { AuthSession } from './auth-session.entity';
  * Token individual dentro de una sesión.
  * Registrado en TOKEN_REFRESH.
  */
-@Entity('AuthToken')
+@Entity('AuthToken', { schema: 'audit' })
 export class AuthToken {
   @PrimaryGeneratedColumn('uuid')
   token_id!: string;

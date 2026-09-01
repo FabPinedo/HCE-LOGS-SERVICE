@@ -6,7 +6,7 @@ import {
  * Copia denormalizada del usuario al momento del evento.
  * Permanece válida aunque el usuario sea eliminado del sistema origen.
  */
-@Entity('AppUser')
+@Entity('AppUser', { schema: 'audit' })
 @Index(['username'])
 export class UserEntity {
   // No es un UUID: el sistema de auth identifica usuarios por username (ej. "fpinedo"),

@@ -12,7 +12,7 @@ export function dbConfig(cfg: ConfigService): TypeOrmModuleOptions {
   return {
     type:     'mssql',
     host:     cfg.get<string>('DB_HOST', 'localhost'),
-    port:     cfg.get<number>('DB_PORT', 1433),
+    port:     Number(cfg.get('DB_PORT', 1433)),
     username: cfg.get<string>('DB_USER'),
     password: cfg.get<string>('DB_PASS'),
     database: cfg.get<string>('DB_NAME', 'HCE_AUDIT'),

@@ -6,7 +6,7 @@ import {
  * Traza distribuida de un request a través de múltiples microservicios.
  * Permite correlacionar todos los AUDIT_EVENT de una misma operación.
  */
-@Entity('AuditTrace')
+@Entity('AuditTrace', { schema: 'audit' })
 @Index(['correlation_id'])
 export class AuditTrace {
   @PrimaryColumn('uuid')

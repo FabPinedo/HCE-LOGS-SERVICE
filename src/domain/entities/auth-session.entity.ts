@@ -7,7 +7,7 @@ import { UserEntity } from './user.entity';
  * Sesión de autenticación.
  * Creada en LOGIN_SUCCESS, actualizada en LOGOUT.
  */
-@Entity('AuthSession')
+@Entity('AuthSession', { schema: 'audit' })
 export class AuthSession {
   @PrimaryColumn('uuid')
   session_id!: string;
